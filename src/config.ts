@@ -7,7 +7,7 @@ export const siteConfig = {
   ],
   title: "I.UPXUU.COM",
   descriptions: [
-    "LIFE IS A CODING AND I WILL DEVELOP IT",
+    "LIFE IS A CODING AND I WILL DEBUG IT",
     "UPXUU = XU AND U!",
     "逐光而上"
   ],

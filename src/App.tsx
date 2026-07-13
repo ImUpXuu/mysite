@@ -57,16 +57,16 @@ const BlogFeed = () => {
 
   return (
     <div className="space-y-6 mt-8 w-full relative z-10">
-      <motion.h2 
+        <motion.h2 
         initial={{ opacity: 0, x: -20 }}
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true, margin: "-50px" }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="text-3xl sm:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-16 mb-8 flex items-center gap-4 before:content-[''] before:block before:w-2 before:h-8 before:bg-sky-400 before:rounded-full"
+        className="text-2xl sm:text-3xl md:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-12 sm:mt-16 mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4 before:content-[''] before:block before:w-1.5 sm:before:w-2 before:h-6 sm:before:h-8 before:bg-sky-400 before:rounded-full px-1 sm:px-2"
       >
         最新动态
       </motion.h2>
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 px-1 sm:px-2">
         {posts.map((post, i) => (
           <motion.a
             key={i}
@@ -77,13 +77,13 @@ const BlogFeed = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="group flex flex-col gap-3 p-6 rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden"
+            className="group flex flex-col gap-2 sm:gap-3 p-5 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all cursor-pointer relative overflow-hidden"
           >
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline gap-2 sm:gap-4">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-sky-500 transition-colors line-clamp-2">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white group-hover:text-sky-500 transition-colors line-clamp-2">
                 {post.title}
               </h3>
-              <span className="text-sm font-mono text-slate-400 whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-mono text-slate-400 whitespace-nowrap">
                 {post.pubDate}
               </span>
             </div>
@@ -104,7 +104,7 @@ const markdownComponents: any = {
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="text-3xl sm:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-16 mb-8 flex items-center gap-4 before:content-[''] before:block before:w-2 before:h-8 before:bg-sky-400 before:rounded-full" 
+      className="text-2xl sm:text-3xl md:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-12 sm:mt-16 mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4 before:content-[''] before:block before:w-1.5 sm:before:w-2 before:h-6 sm:before:h-8 before:bg-sky-400 before:rounded-full" 
       {...props} 
     />
   ),
@@ -114,21 +114,21 @@ const markdownComponents: any = {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="text-slate-700 dark:text-slate-200 leading-relaxed text-lg sm:text-xl font-medium mb-8 px-2" 
+      className="text-slate-700 dark:text-slate-200 leading-relaxed text-base sm:text-lg font-medium mb-6 sm:mb-8 px-1 sm:px-2" 
       {...props} 
     />
   ),
-  ul: ({node, ...props}: any) => <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-12 px-2" {...props} />,
+  ul: ({node, ...props}: any) => <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-8 sm:mb-12 px-1 sm:px-2" {...props} />,
   li: ({node, ...props}: any) => (
     <motion.li 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="flex items-start group p-5 sm:p-6 rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all relative overflow-hidden"
+      className="flex items-start group p-4 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all relative overflow-hidden"
     >
-      <span className="mr-3 text-sky-400 group-hover:scale-125 transition-transform mt-1.5 text-sm shrink-0">✧</span>
-      <span className="text-slate-700 dark:text-slate-200 font-medium leading-relaxed text-lg">{props.children}</span>
+      <span className="mr-3 text-sky-400 group-hover:scale-125 transition-transform mt-1 sm:mt-1.5 text-sm shrink-0">✧</span>
+      <span className="text-slate-700 dark:text-slate-200 font-medium leading-relaxed text-base sm:text-lg">{props.children}</span>
     </motion.li>
   ),
   strong: ({node, ...props}: any) => <strong className="font-bold text-sky-500 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 px-3 py-1 rounded-md" {...props} />,
@@ -306,7 +306,7 @@ export default function App() {
         </motion.button>
 
         {/* Hero Section */}
-        <section className="min-h-screen w-full flex items-center justify-center p-6 relative">
+        <section className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative">
           <div className="w-full max-w-2xl mx-auto flex flex-col items-center text-center">
             <AnimatePresence>
               {isLoaded && (
@@ -314,35 +314,35 @@ export default function App() {
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="flex flex-col items-center w-full"
+                  className="flex flex-col items-center w-full px-2"
                 >
                   
                   {/* Avatar */}
-                  <motion.div variants={itemVariants} className="mb-10 relative group">
+                  <motion.div variants={itemVariants} className="mb-8 sm:mb-10 relative group">
                     <div className="absolute inset-0 bg-sky-300/40 dark:bg-sky-500/20 rounded-full blur-2xl transform scale-125 transition-transform duration-700 group-hover:scale-150" />
                     <div className="relative p-2 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-full shadow-2xl border border-white/50 dark:border-slate-700/50">
                       <img 
                         src={siteConfig.avatar} 
                         alt={siteConfig.name} 
-                        className="w-36 h-36 md:w-44 md:h-44 rounded-full object-cover border-4 border-white/90 dark:border-slate-800"
+                        className="w-32 h-32 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full object-cover border-4 border-white/90 dark:border-slate-800"
                       />
                     </div>
                   </motion.div>
 
                   {/* Name & Title */}
-                  <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-slate-800 dark:text-white mb-6">
+                  <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black font-display tracking-tight text-slate-800 dark:text-white mb-4 sm:mb-6 leading-tight">
                     HI! I am <span className="text-sky-500">{siteConfig.name}</span>
                   </motion.h1>
                   
-                  <motion.div variants={itemVariants} className="mb-8">
-                    <div className="px-6 py-2.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg shadow-sm border border-white/50 dark:border-slate-700/50 text-sky-600 dark:text-sky-300 text-sm md:text-base font-bold tracking-wide">
+                  <motion.div variants={itemVariants} className="mb-6 sm:mb-8">
+                    <div className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg shadow-sm border border-white/50 dark:border-slate-700/50 text-sky-600 dark:text-sky-300 text-sm md:text-base font-bold tracking-wide">
                       {siteConfig.title}
                     </div>
                   </motion.div>
 
                   {/* Description */}
-                  <motion.div variants={itemVariants} className="mb-12 max-w-xl px-4 h-[4rem] flex items-center justify-center">
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-lg md:text-xl font-medium text-center relative inline-flex items-center">
+                  <motion.div variants={itemVariants} className="mb-10 sm:mb-12 max-w-xl px-2 w-full min-h-[5rem] sm:min-h-[4rem] flex items-center justify-center">
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base sm:text-lg md:text-xl font-medium text-center relative inline-flex items-center flex-wrap justify-center">
                       {descText}
                       <span className="inline-block w-[3px] h-[1.1em] ml-1 bg-sky-500 dark:bg-sky-400 animate-[pulse_1s_step-end_infinite] align-middle rounded-full relative">
                         <AnimatePresence>
@@ -364,7 +364,7 @@ export default function App() {
                   </motion.div>
 
                   {/* Social Links */}
-                  <motion.div variants={itemVariants} className="flex gap-4">
+                  <motion.div variants={itemVariants} className="flex flex-wrap justify-center gap-3 sm:gap-4">
                     {siteConfig.socials.map((social) => (
                       <motion.a
                         key={social.label}
@@ -373,11 +373,11 @@ export default function App() {
                         rel="noopener noreferrer"
                         whileHover={{ y: -5 }}
                         whileTap={{ scale: 0.95 }}
-                        className="group flex items-center p-3.5 sm:p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_32px_rgba(14,165,233,0.15)] text-slate-600 dark:text-slate-300 hover:text-sky-500 dark:hover:text-sky-400 transition-all border border-white/60 dark:border-slate-700/60"
+                        className="group flex items-center p-3 sm:p-3.5 md:p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_32px_rgba(14,165,233,0.15)] text-slate-600 dark:text-slate-300 hover:text-sky-500 dark:hover:text-sky-400 transition-all border border-white/60 dark:border-slate-700/60"
                         aria-label={social.label}
                       >
                         {getIcon(social.icon)}
-                        <span className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2.5 transition-all duration-300 ease-out whitespace-nowrap font-bold text-sm">
+                        <span className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 sm:group-hover:ml-2.5 transition-all duration-300 ease-out whitespace-nowrap font-bold text-xs sm:text-sm">
                           {social.label}
                         </span>
                       </motion.a>
@@ -391,8 +391,8 @@ export default function App() {
         </section>
 
         {/* About Me Section */}
-        <section id="about" className="min-h-screen w-full flex flex-col items-center justify-start p-6 relative pt-24 pb-32">
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-8 relative z-10">
+        <section id="about" className="min-h-screen w-full flex flex-col items-center justify-start p-4 sm:p-6 relative pt-20 sm:pt-24 pb-28 sm:pb-32">
+          <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 sm:gap-8 relative z-10">
                
             {/* My Sites */}
             {siteConfig.sites && siteConfig.sites.length > 0 && (
@@ -402,11 +402,11 @@ export default function App() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-3xl sm:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-16 mb-8 flex items-center gap-4 before:content-[''] before:block before:w-2 before:h-8 before:bg-sky-400 before:rounded-full"
+                  className="text-2xl sm:text-3xl md:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mt-12 sm:mt-16 mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4 before:content-[''] before:block before:w-1.5 sm:before:w-2 before:h-6 sm:before:h-8 before:bg-sky-400 before:rounded-full"
                 >
                   我的站点
                 </motion.h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-1 sm:px-2">
                   {siteConfig.sites.map((site, index) => (
                     <motion.a
                       key={index}
@@ -417,9 +417,9 @@ export default function App() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, margin: "-50px" }}
                       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                      className="group p-6 rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all flex flex-col gap-3 relative overflow-hidden"
+                      className="group p-5 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all flex flex-col gap-2 sm:gap-3 relative overflow-hidden"
                     >
-                      <h3 className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-sky-500 transition-colors flex items-center gap-2">
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white group-hover:text-sky-500 transition-colors flex items-center gap-2">
                         {site.name}
                         <span className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-sky-500">
                           <ChevronDown className="-rotate-90" size={20} />
