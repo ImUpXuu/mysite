@@ -5,11 +5,11 @@ export const siteConfig = {
     "https://upxuu.com/images/background/1.webp",
     "https://upxuu.com/images/background/2.webp"
   ],
-  title: "探索者 & 创作者",
+  title: "I.UPXUU.COM",
   descriptions: [
-    "欢迎来到我的个人空间。",
-    "我热爱创造丝滑流畅的数字体验。",
-    "充满童真与惊喜，很高兴遇见你！"
+    "LIFE IS A CODING AND I WILL DEVELOP IT",
+    "UPXUU = XU AND U!",
+    "逐光而上"
   ],
   socials: [
     { label: "博客", url: "https://upxuu.com/", icon: "globe" },
