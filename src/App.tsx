@@ -134,6 +134,175 @@ const markdownComponents: any = {
   strong: ({node, ...props}: any) => <strong className="font-bold text-sky-500 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 px-3 py-1 rounded-md" {...props} />,
 };
 
+function MouseEffects() {
+  const [trails, setTrails] = useState<{ id: number; x: number; y: number; color: string; isClick?: boolean; angle?: number }[]>([]);
+
+  useEffect(() => {
+    let lastTime = 0;
+    const colors = ['text-pink-400', 'text-sky-400', 'text-yellow-400', 'text-purple-400'];
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - lastTime > 60) {
+        lastTime = now;
+        const newTrail = { 
+          id: Date.now() + Math.random(), 
+          x: e.clientX, 
+          y: e.clientY,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        };
+        setTrails(prev => [...prev, newTrail]);
+        setTimeout(() => {
+          setTrails(prev => prev.filter(t => t.id !== newTrail.id));
+        }, 800);
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const sparks = Array.from({ length: 6 }).map((_, i) => ({
+        id: Date.now() + Math.random() + i,
+        x: e.clientX,
+        y: e.clientY,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        isClick: true,
+        angle: (i * Math.PI * 2) / 6
+      }));
+      setTrails(prev => [...prev, ...sparks]);
+      setTimeout(() => {
+        setTrails(prev => prev.filter(t => !sparks.find(s => s.id === t.id)));
+      }, 800);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('click', handleClick);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('click', handleClick);
+    };
+  }, []);
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
+      <AnimatePresence>
+        {trails.map(trail => (
+          <motion.div
+            key={trail.id}
+            initial={{ opacity: 0.8, scale: trail.isClick ? 0.5 : 0.5, x: trail.x, y: trail.y }}
+            animate={{ 
+              opacity: 0, 
+              scale: trail.isClick ? 1.5 : 1.5, 
+              y: trail.isClick ? trail.y + Math.sin(trail.angle!) * 80 : trail.y - 50,
+              x: trail.isClick ? trail.x + Math.cos(trail.angle!) * 80 : trail.x + (Math.random() - 0.5) * 40,
+              rotate: trail.isClick ? Math.random() * 180 : 0
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 ${trail.color} ${trail.isClick ? 'text-2xl' : 'text-xl'} drop-shadow-md`}
+            style={{ left: 0, top: 0 }}
+          >
+            {trail.isClick ? '✦' : '♥'}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function GithubProjects() {
+  const [repos, setRepos] = useState<any[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    fetch('https://api.github.com/users/ImUpXuu/repos?sort=updated&per_page=6')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setRepos(data);
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || repos.length === 0 || isHovered) return;
+    
+    let animationId: number;
+    let lastTime = performance.now();
+    
+    const scroll = (time: number) => {
+      const dt = time - lastTime;
+      lastTime = time;
+      
+      if (el) {
+        el.scrollLeft += (dt * 0.05);
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          el.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(scroll);
+    };
+
+    animationId = requestAnimationFrame(scroll);
+    
+    return () => cancelAnimationFrame(animationId);
+  }, [repos, isHovered]);
+
+  if (repos.length === 0) return null;
+
+  return (
+    <div className="w-full mt-8 sm:mt-12 overflow-hidden">
+      <motion.h2 
+        initial={{ opacity: 0, x: -20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="text-2xl sm:text-3xl md:text-4xl font-black font-display tracking-tight text-slate-800 dark:text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4 before:content-[''] before:block before:w-1.5 sm:before:w-2 before:h-6 sm:before:h-8 before:bg-sky-400 before:rounded-full"
+      >
+        开源项目
+      </motion.h2>
+      <div 
+        ref={scrollRef}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onTouchStart={() => setIsHovered(true)}
+        onTouchEnd={() => setIsHovered(false)}
+        className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar px-1 sm:px-2 pb-4"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {[...repos, ...repos].map((repo, i) => (
+          <a
+            key={`${repo.id}-${i}`}
+            href={repo.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 w-72 sm:w-80 group p-5 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] border border-slate-300/60 dark:border-slate-700/60 hover:border-sky-400 dark:hover:border-sky-400 hover:-translate-y-1 transition-all flex flex-col gap-2 sm:gap-3 relative overflow-hidden bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm"
+          >
+            <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white group-hover:text-sky-500 transition-colors flex items-center gap-2 truncate">
+              <Github className="w-5 h-5 shrink-0" />
+              <span className="truncate">{repo.name}</span>
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-2 h-10 whitespace-normal">
+              {repo.description || '无描述信息'}
+            </p>
+            <div className="flex items-center gap-4 mt-2 text-xs font-mono text-slate-400">
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+                {repo.language || 'Unknown'}
+              </span>
+              <span className="flex items-center gap-1">
+                ⭐ {repo.stargazers_count}
+              </span>
+              <span className="flex items-center gap-1">
+                🍴 {repo.forks_count}
+              </span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [bgImage, setBgImage] = useState<string>('');
   const [isDark, setIsDark] = useState(false);
@@ -257,12 +426,13 @@ export default function App() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 1, ease: [0.16, 1, 0.3, 1] as const }
+      transition: { duration: 1, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
   return (
     <div className={`min-h-screen w-full selection:bg-sky-200 selection:text-sky-900 ${isDark ? 'dark' : ''}`}>
+      <MouseEffects />
       {/* Fixed Background Layer */}
       <div className="fixed inset-0 w-full h-full bg-sky-50 dark:bg-slate-900 transition-colors duration-1000 ease-in-out z-0">
         <AnimatePresence>
@@ -433,6 +603,9 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Github Projects */}
+            <GithubProjects />
 
             <div className="text-left w-full">
               <Markdown
