@@ -17,10 +17,10 @@ export const siteConfig = {
     { label: "邮箱", url: "mailto:me@upxuu.com", icon: "mail" }
   ],
   aboutMe: `
-你好，世界！我是 UpXuu-(ljx)。一个在sb河北上学的cs，目前专注于学习前端与 Python（其实是上学罢了），热爱分享，持续折腾（hardly）。
+你好，世界！我是 UpXuu。一个在河北上学的初中生，目前专注于学习前端与 Python，热爱分享，持续折腾。
 
 ## Who Am I
-嗨，我是 UpXuu (ljx)，一个普通的人。
+嗨，我是 UpXuu，一个普通的人。
 emm why？UPXUU？ 因为如果你认真看这页 你会发现我的wx是imljxu 嗯对我确实是xuu 那up就是凑字数的罢了(
 
 ## What I Do
@@ -42,7 +42,7 @@ Keep learning, keep building, keep sharing.
 - 做更多有意思的开源项目
 - 交到更多志同道合的朋友
 - 考上心仪的高中
-- 地生120！！！
+- 2027中考775/800
   `,
   sites: [
     { name: "UPXUU BLOG", url: "https://upxuu.com/", description: "记录生活与技术的个人博客" },
@@ -51,4 +51,3 @@ Keep learning, keep building, keep sharing.
     { name: "OpenList网盘", url: "https://f.upxuu.com/", description: "个人文件网盘与分享服务" }
   ]
 };
-
