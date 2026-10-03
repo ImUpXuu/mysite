@@ -20,13 +20,12 @@ import {
   Flame,
   Star,
   Send,
-  Compass,
   User,
   Target,
-  Trophy,
-  CheckCircle2
+  Play
 } from 'lucide-react';
 import Markdown from 'react-markdown';
+import Lenis from 'lenis';
 import { siteConfig } from './config';
 
 // ----------------------------------------------------
@@ -69,26 +68,45 @@ class SoundFX {
 const sfx = new SoundFX();
 
 // ----------------------------------------------------
-// Text Reveal Animation Component (Blur + Fade + Slide)
+// Text Entrance Animation Components
 // ----------------------------------------------------
-function TextReveal({
-  children,
-  className = '',
-  delay = 0,
-  y = 20
-}: {
+interface TextRevealProps {
   children: React.ReactNode;
   className?: string;
   delay?: number;
-  y?: number;
-}) {
+}
+
+function TextReveal({ children, className = '', delay = 0 }: TextRevealProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y, filter: 'blur(4px)' }}
+      initial={{ opacity: 0, y: 12, filter: 'blur(3px)' }}
       whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, y: -y, filter: 'blur(3px)' }}
-      viewport={{ once: false, amount: 0.15 }}
-      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+      viewport={{ once: true, margin: '-20px' }}
+      transition={{
+        type: 'spring',
+        damping: 20,
+        stiffness: 240,
+        delay,
+      }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function HeadingReveal({ children, className = '', delay = 0 }: TextRevealProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18, filter: 'blur(5px)', scale: 0.98 }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
+      viewport={{ once: true, margin: '-25px' }}
+      transition={{
+        type: 'spring',
+        damping: 18,
+        stiffness: 220,
+        delay,
+      }}
       className={className}
     >
       {children}
@@ -97,7 +115,7 @@ function TextReveal({
 }
 
 // ----------------------------------------------------
-// Python Terminal Script Definitions
+// Python Interactive Terminal HUD with Scroll Trigger & Real Typing Effect
 // ----------------------------------------------------
 interface PythonTerminalLine {
   text: string;
@@ -120,105 +138,86 @@ const PYTHON_BOOT_SCRIPT: PythonTerminalLine[] = [
   { type: 'success', text: '[✓] All core modules loaded. Welcome to UpXuu Space!' }
 ];
 
-// ----------------------------------------------------
-// Interactive Python Terminal (In-View Typewriter Engine)
-// ----------------------------------------------------
 function CyberTerminal() {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(terminalRef, { once: true, margin: '-60px' });
   const [isOpen, setIsOpen] = useState(true);
-
-  // Live Typing Engine State
-  const [completedLines, setCompletedLines] = useState<PythonTerminalLine[]>([]);
-  const [activeLineIdx, setActiveLineIdx] = useState(0);
-  const [activeTypedChars, setActiveTypedChars] = useState('');
-  const [isTypingScript, setIsTypingScript] = useState(false);
+  const [hasTriggered, setHasTriggered] = useState(false);
+  const [currentLineIdx, setCurrentLineIdx] = useState(0);
+  const [currentCharIdx, setCurrentCharIdx] = useState(0);
+  const [isBootDone, setIsBootDone] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const [interactiveLogs, setInteractiveLogs] = useState<Array<{ expr: string; result: string }>>([]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(containerRef, { once: true, amount: 0.2 });
 
-  // Trigger typing ONLY when scrolled into view
+  // Start execution ONLY when scrolled into view
   useEffect(() => {
-    if (isInView && !isTypingScript && activeLineIdx === 0 && completedLines.length === 0) {
-      setIsTypingScript(true);
+    if (isInView && !hasTriggered) {
+      setHasTriggered(true);
     }
-  }, [isInView, isTypingScript, activeLineIdx, completedLines.length]);
+  }, [isInView, hasTriggered]);
 
-  // Character-by-character typewriter execution for boot script
+  // Authentic character-by-character typing engine
   useEffect(() => {
-    if (!isTypingScript) return;
-    if (activeLineIdx >= PYTHON_BOOT_SCRIPT.length) {
-      setIsTypingScript(false);
+    if (!hasTriggered || isBootDone) return;
+
+    if (currentLineIdx >= PYTHON_BOOT_SCRIPT.length) {
+      setIsBootDone(true);
       return;
     }
 
-    const targetLine = PYTHON_BOOT_SCRIPT[activeLineIdx];
-    const fullText = targetLine.text;
+    const line = PYTHON_BOOT_SCRIPT[currentLineIdx];
 
-    // For commands & code, type out character by character!
-    if (targetLine.type === 'cmd' || targetLine.type === 'code') {
-      if (activeTypedChars.length < fullText.length) {
-        const timeout = setTimeout(() => {
-          setActiveTypedChars(fullText.slice(0, activeTypedChars.length + 1));
-          if (activeTypedChars.length % 3 === 0) {
-            sfx.playPop(780 + (activeTypedChars.length % 5) * 40, 0.015);
+    // Character-by-character typing for commands and code
+    if (line.type === 'cmd' || line.type === 'code') {
+      if (currentCharIdx < line.text.length) {
+        const charDelay = line.type === 'cmd' ? 28 : 20;
+        const timer = setTimeout(() => {
+          setCurrentCharIdx((prev) => prev + 1);
+          if (currentCharIdx % 3 === 0) {
+            sfx.playPop(750 + (currentCharIdx % 6) * 35, 0.015);
           }
-        }, 22);
-        return () => clearTimeout(timeout);
+        }, charDelay);
+        return () => clearTimeout(timer);
       } else {
-        // Line typing finished, pause briefly as if hitting Enter
-        const timeout = setTimeout(() => {
-          setCompletedLines((prev) => [...prev, targetLine]);
-          setActiveTypedChars('');
-          setActiveLineIdx((prev) => prev + 1);
-        }, 120);
-        return () => clearTimeout(timeout);
+        // Line finished typing: pause briefly before moving to next line
+        const pauseTime = line.type === 'cmd' ? 140 : 160;
+        const timer = setTimeout(() => {
+          setCurrentLineIdx((prev) => prev + 1);
+          setCurrentCharIdx(0);
+        }, pauseTime);
+        return () => clearTimeout(timer);
       }
     } else {
-      // Comments, outputs, success badges appear after a brief natural pause
-      const timeout = setTimeout(() => {
-        setCompletedLines((prev) => [...prev, targetLine]);
-        setActiveTypedChars('');
-        setActiveLineIdx((prev) => prev + 1);
-        sfx.playPop(700, 0.02);
-      }, 70);
-      return () => clearTimeout(timeout);
+      // Instant execution output for comments, outputs, and status banners
+      const printDelay = line.type === 'success' ? 220 : 100;
+      const timer = setTimeout(() => {
+        setCurrentLineIdx((prev) => prev + 1);
+        setCurrentCharIdx(0);
+        sfx.playPop(820, 0.02);
+      }, printDelay);
+      return () => clearTimeout(timer);
     }
-  }, [isTypingScript, activeLineIdx, activeTypedChars]);
+  }, [hasTriggered, currentLineIdx, currentCharIdx, isBootDone]);
 
-  // Keep auto-scrolling terminal body as new characters arrive
+  // Auto-scroll terminal body to bottom as lines type out
   useEffect(() => {
     if (terminalBodyRef.current) {
       terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
     }
-  }, [completedLines, activeTypedChars, interactiveLogs]);
+  }, [currentLineIdx, currentCharIdx, interactiveLogs]);
 
   const handleReplay = () => {
-    setCompletedLines([]);
-    setActiveTypedChars('');
-    setActiveLineIdx(0);
-    setIsTypingScript(true);
+    setCurrentLineIdx(0);
+    setCurrentCharIdx(0);
+    setIsBootDone(false);
+    setHasTriggered(true);
+    setInteractiveLogs([]);
     sfx.playPop(1100, 0.06);
   };
 
   const quickPythonCmds = ['me.target', 'me.stacks', 'me.motto', 'whoami', 'clear', 'replay'];
-
-  // Simulated code typing effect into the input field when clicking quick buttons
-  const simulateTypeAndExecute = (command: string) => {
-    let currentIdx = 0;
-    setInputVal('');
-    const interval = setInterval(() => {
-      currentIdx++;
-      setInputVal(command.slice(0, currentIdx));
-      sfx.playPop(850 + currentIdx * 20, 0.015);
-      if (currentIdx >= command.length) {
-        clearInterval(interval);
-        setTimeout(() => {
-          executePythonCmd(command);
-        }, 140);
-      }
-    }, 30);
-  };
 
   const executePythonCmd = (rawCmd: string) => {
     const cmd = rawCmd.trim();
@@ -269,42 +268,45 @@ function CyberTerminal() {
 
     setInteractiveLogs((prev) => [...prev, { expr: cmd, result: res }]);
     setInputVal('');
-    sfx.playPop(900, 0.04);
+    sfx.playPop(850, 0.04);
   };
 
-  // Python syntax highlighting renderer
-  const renderPythonLine = (line: PythonTerminalLine, isCurrentTyping = false, partialText = '') => {
-    const textToRender = isCurrentTyping ? partialText : line.text;
+  // Syntax highlighting renderer with character-slice support for typing animation
+  const renderLine = (line: PythonTerminalLine, isCurrentTyping: boolean, typedLength: number) => {
+    const displayText = isCurrentTyping ? line.text.slice(0, typedLength) : line.text;
 
     if (line.type === 'cmd') {
       return (
         <div className="text-[#0284c7] dark:text-[#38bdf8] font-bold flex items-center gap-1.5 flex-wrap">
           <span className="text-[#f59e0b]">upxuu@host:~$</span>
-          <span>{textToRender.replace('$ ', '')}</span>
-          {isCurrentTyping && <span className="w-1.5 h-3.5 bg-[#0284c7] animate-pulse inline-block" />}
+          <span>{displayText.replace('$ ', '')}</span>
+          {isCurrentTyping && (
+            <span className="inline-block w-2 h-3.5 bg-[#0284c7] dark:bg-[#38bdf8] animate-pulse ml-0.5" />
+          )}
         </div>
       );
     }
     if (line.type === 'comment') {
-      return <div className="text-slate-400 dark:text-slate-500 italic font-mono">{textToRender}</div>;
+      return <div className="text-slate-400 dark:text-slate-500 italic font-mono">{displayText}</div>;
     }
     if (line.type === 'success') {
       return (
         <div className="text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25 inline-block my-0.5">
-          {textToRender}
+          {displayText}
         </div>
       );
     }
     if (line.type === 'output') {
       return (
         <div className="text-sky-600 dark:text-sky-400 font-mono font-medium pl-1">
-          {textToRender}
+          {displayText}
         </div>
       );
     }
 
-    // Python code highlighting
-    const parts = textToRender.split(/(".*?"|\b(?:from|import|class|def|return)\b)/g);
+    // Python code highlighting with active cursor
+    const code = displayText;
+    const parts = code.split(/(".*?"|\b(?:from|import|class|def|return)\b)/g);
     return (
       <div className="font-mono text-slate-800 dark:text-slate-100 pl-1 flex items-center flex-wrap">
         {parts.map((p, i) => {
@@ -319,36 +321,33 @@ function CyberTerminal() {
           }
           return <span key={i}>{p}</span>;
         })}
-        {isCurrentTyping && <span className="w-1.5 h-3.5 bg-[#0284c7] ml-0.5 animate-pulse inline-block" />}
+        {isCurrentTyping && (
+          <span className="inline-block w-2 h-3.5 bg-[#0284c7] dark:bg-[#38bdf8] animate-pulse ml-0.5" />
+        )}
       </div>
     );
   };
 
-  const currentTypingLine = activeLineIdx < PYTHON_BOOT_SCRIPT.length ? PYTHON_BOOT_SCRIPT[activeLineIdx] : null;
-
   return (
-    <motion.div 
+    <div 
       id="terminal"
-      ref={terminalRef}
-      initial={{ opacity: 0, y: 35, scale: 0.96 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.96 }}
-      viewport={{ once: false, amount: 0.15 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
-      className="w-full mt-10 sm:mt-16 scroll-mt-24"
+      ref={containerRef}
+      className="w-full mt-8 sm:mt-12 scroll-mt-20 sm:scroll-mt-24"
     >
-      <div className="flex items-center justify-between mb-2.5 px-1">
+      <div className="flex items-center justify-between mb-2.5 sm:mb-3 px-1">
         <button
           onClick={() => {
             setIsOpen(!isOpen);
             sfx.playPop(1000, 0.05);
           }}
-          className="px-2.5 py-1 bg-[#fde68a] dark:bg-slate-800 border-2 border-[#0284c7] font-black text-xs text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#0284c7] dark:shadow-[1.5px_1.5px_0px_0px_#38bdf8] flex items-center gap-1.5 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all cursor-pointer rounded-sm transform -skew-x-3"
+          className="px-2.5 py-1 sm:px-3 sm:py-1 bg-[#fde68a] dark:bg-slate-800 border-2 border-[#0284c7] font-black text-xs text-[#0284c7] dark:text-[#38bdf8] shadow-[2px_2px_0px_0px_#0284c7] dark:shadow-[2px_2px_0px_0px_#38bdf8] flex items-center gap-1.5 sm:gap-2 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all cursor-pointer rounded-sm transform -skew-x-3"
         >
           <TerminalIcon className="w-3.5 h-3.5" />
-          <span>{isOpen ? '[- 收起 Python 终端]' : '[+ 打开 Python 终端]'}</span>
+          <span>{isOpen ? '[- 收起终端]' : '[+ 打开终端]'}</span>
         </button>
-        <span className="text-[11px] font-mono font-bold text-slate-500">Python 3.12 // upxuu_boot</span>
+        <span className="text-[11px] sm:text-xs font-mono font-bold text-slate-500">
+          Python 3.12 // upxuu_boot
+        </span>
       </div>
 
       <AnimatePresence>
@@ -359,64 +358,77 @@ function CyberTerminal() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            {/* Neo-Brutalist Natural Card Background: Not forced pitch black! */}
-            <div className="neo-box rounded-xl p-3 sm:p-5 font-mono text-xs sm:text-sm bg-white/95 dark:bg-slate-900/95 border-2 border-[#0284c7] shadow-[3.5px_3.5px_0px_0px_#0284c7]">
+            {/* Responsive Neo-Box: Compact padding on mobile, spacious on desktop */}
+            <div className="neo-box rounded-xl p-3 sm:p-5 font-mono text-xs sm:text-sm bg-white/95 dark:bg-slate-900/95 border-2 border-[#0284c7] shadow-[3px_3px_0px_0px_#0284c7] sm:shadow-[4px_4px_0px_0px_#0284c7]">
               {/* Terminal Window Bar */}
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 mb-2.5 text-slate-500">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 mb-2.5 sm:pb-2.5 sm:mb-3 text-slate-500">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#ef4444] border border-[#b91c1c]"></span>
                   <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b] border border-[#d97706]"></span>
                   <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#10b981] border border-[#059669]"></span>
-                  <span className="ml-1.5 font-bold text-[#0284c7] dark:text-[#38bdf8] text-xs flex items-center gap-1">
+                  <span className="ml-1.5 sm:ml-2 font-bold text-[#0284c7] dark:text-[#38bdf8] flex items-center gap-1 text-[11px] sm:text-xs">
                     <span>🐍</span>
-                    <span className="truncate max-w-[140px] sm:max-w-none">upxuu_boot.py — CPython 3.12</span>
+                    <span className="truncate max-w-[130px] sm:max-w-none">upxuu_boot.py</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={handleReplay}
-                    className="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-[#fde68a] text-[#0284c7] hover:bg-white border border-[#0284c7] transition-all cursor-pointer"
+                    className="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold bg-[#fde68a] text-[#0284c7] hover:bg-white border border-[#0284c7] transition-all cursor-pointer flex items-center gap-1"
                     title="重新一行行执行启动脚本"
                   >
-                    ▶ 重新运行
+                    <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />
+                    <span>重新运行</span>
                   </button>
                   <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                    <Radio className="w-3 h-3 animate-pulse" />
+                    <Radio className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse" />
                     <span>ONLINE</span>
                   </div>
                 </div>
               </div>
 
               {/* Quick Python Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 mb-2.5 pb-2 border-b border-slate-200/80 dark:border-slate-800/80">
-                <span className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">Python 快速执行:</span>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-2.5 pb-2 border-b border-slate-200/80 dark:border-slate-800/80">
+                <span className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs font-bold mr-0.5">
+                  快捷命令:
+                </span>
                 {quickPythonCmds.map((q) => (
                   <button
                     key={q}
-                    onClick={() => simulateTypeAndExecute(q)}
-                    className="px-2 py-0.5 rounded-sm bg-[#faf8f5] dark:bg-slate-800 hover:bg-[#0284c7] hover:text-white border border-[#0284c7]/40 text-[#0284c7] dark:text-[#38bdf8] text-[11px] font-bold transition-all cursor-pointer shadow-[1px_1px_0px_0px_#fde68a]"
+                    onClick={() => executePythonCmd(q)}
+                    className="px-2 py-0.5 rounded-sm bg-[#faf8f5] dark:bg-slate-800 hover:bg-[#0284c7] hover:text-white border border-[#0284c7]/40 text-[#0284c7] dark:text-[#38bdf8] text-[11px] sm:text-xs font-bold transition-all cursor-pointer shadow-[1px_1px_0px_0px_#fde68a]"
                   >
                     {q}
                   </button>
                 ))}
               </div>
 
-              {/* Line-by-Line Python Execution Stream Body */}
+              {/* Line-by-Line Python Execution Stream Body with Live Typing Effect */}
               <div
                 ref={terminalBodyRef}
-                className="space-y-1 max-h-56 sm:max-h-64 overflow-y-auto no-scrollbar py-1 leading-relaxed text-[11px] sm:text-xs"
+                className="space-y-1 sm:space-y-1.5 max-h-52 sm:max-h-64 overflow-y-auto no-scrollbar py-1 leading-relaxed"
               >
-                {/* Completed lines */}
-                {completedLines.map((line, idx) => (
-                  <div key={idx}>{renderPythonLine(line)}</div>
-                ))}
+                {!hasTriggered ? (
+                  <div className="text-slate-400 italic text-[11px] sm:text-xs py-2">
+                    # [就绪] 滑动至终端时将自动执行启动脚本...
+                  </div>
+                ) : (
+                  <>
+                    {/* Fully completed lines */}
+                    {PYTHON_BOOT_SCRIPT.slice(0, currentLineIdx).map((line, idx) => (
+                      <div key={idx}>{renderLine(line, false, line.text.length)}</div>
+                    ))}
 
-                {/* Currently typing line */}
-                {isTypingScript && currentTypingLine && (
-                  <div>{renderPythonLine(currentTypingLine, true, activeTypedChars)}</div>
+                    {/* Active line currently being typed */}
+                    {!isBootDone && currentLineIdx < PYTHON_BOOT_SCRIPT.length && (
+                      <div key="active-typing">
+                        {renderLine(PYTHON_BOOT_SCRIPT[currentLineIdx], true, currentCharIdx)}
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {/* Interactive logs */}
+                {/* User Interactive Execution Logs */}
                 {interactiveLogs.map((item, idx) => (
                   <div key={`log-${idx}`} className="space-y-0.5 pt-1">
                     <div className="text-[#0284c7] dark:text-[#38bdf8] font-bold flex items-center gap-1.5">
@@ -429,11 +441,11 @@ function CyberTerminal() {
                   </div>
                 ))}
 
-                {/* Blinking Cursor */}
-                {!isTypingScript && (
+                {/* Prompt Cursor when finished */}
+                {isBootDone && (
                   <div className="flex items-center gap-1 pt-0.5 text-sky-500">
                     <span className="text-[#f59e0b] font-bold">{'>>>'}</span>
-                    <span className="w-1.5 h-3.5 bg-[#0284c7] animate-pulse inline-block"></span>
+                    <span className="w-2 h-3.5 bg-[#0284c7] animate-pulse inline-block"></span>
                   </div>
                 )}
               </div>
@@ -444,15 +456,15 @@ function CyberTerminal() {
                   e.preventDefault();
                   executePythonCmd(inputVal);
                 }}
-                className="mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2"
+                className="mt-2.5 pt-2 sm:mt-3 sm:pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2"
               >
-                <span className="text-[#f59e0b] font-bold">{'>>>'}</span>
+                <span className="text-[#f59e0b] font-bold text-xs sm:text-sm">{'>>>'}</span>
                 <input
                   type="text"
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value)}
-                  placeholder="键入 Python 指令 (如 me.target, me.stacks, me.motto)..."
-                  className="flex-1 bg-transparent border-none outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 font-mono text-[11px] sm:text-xs font-medium"
+                  placeholder="键入 Python 表达式 (如 me.target, me.stacks, me.motto)..."
+                  className="flex-1 bg-transparent border-none outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 font-mono text-[11px] sm:text-sm font-medium"
                 />
                 <button
                   type="submit"
@@ -466,7 +478,7 @@ function CyberTerminal() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
@@ -497,45 +509,41 @@ function MouseEffects() {
 
     const handleMouseMove = (e: MouseEvent) => {
       const now = Date.now();
-      if (now - lastTime < 45) return;
-      lastTime = now;
-
-      const newP = {
-        id: now + Math.random(),
-        x: e.clientX,
-        y: e.clientY,
-        char: heartIcons[Math.floor(Math.random() * heartIcons.length)],
-        color: colors[Math.floor(Math.random() * colors.length)]
-      };
-
-      setParticles((prev) => [...prev.slice(-18), newP]);
-      setTimeout(() => {
-        setParticles((prev) => prev.filter((p) => p.id !== newP.id));
-      }, 750);
+      if (now - lastTime > 40) {
+        lastTime = now;
+        const newParticle = {
+          id: Date.now() + Math.random(),
+          x: e.clientX,
+          y: e.clientY,
+          char: heartIcons[Math.floor(Math.random() * heartIcons.length)],
+          color: colors[Math.floor(Math.random() * colors.length)],
+        };
+        setParticles((prev) => [...prev.slice(-35), newParticle]);
+        setTimeout(() => {
+          setParticles((prev) => prev.filter((p) => p.id !== newParticle.id));
+        }, 850);
+      }
     };
 
     const handleClick = (e: MouseEvent) => {
-      sfx.playPop(1250, 0.05);
-      const burstCount = 6;
-      const newBurst = Array.from({ length: burstCount }).map((_, i) => ({
-        id: Date.now() + i + Math.random(),
+      sfx.playPop(1200, 0.12);
+      const sparks = Array.from({ length: 10 }).map((_, i) => ({
+        id: Date.now() + Math.random() + i,
         x: e.clientX,
         y: e.clientY,
-        char: heartIcons[Math.floor(Math.random() * heartIcons.length)],
+        char: i % 2 === 0 ? '♥' : '★',
         color: colors[Math.floor(Math.random() * colors.length)],
         isClick: true,
-        angle: (i * 2 * Math.PI) / burstCount
+        angle: (i * Math.PI * 2) / 10,
       }));
-
-      setParticles((prev) => [...prev, ...newBurst]);
+      setParticles((prev) => [...prev.slice(-30), ...sparks]);
       setTimeout(() => {
-        setParticles((prev) => prev.filter((p) => !newBurst.find((b) => b.id === p.id)));
-      }, 850);
+        setParticles((prev) => prev.filter((p) => !sparks.find((s) => s.id === p.id)));
+      }, 900);
     };
 
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('click', handleClick);
-
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
@@ -543,7 +551,7 @@ function MouseEffects() {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-[100] overflow-hidden select-none">
       <AnimatePresence>
         {particles.map((p) => (
           <motion.div
@@ -576,6 +584,7 @@ function MouseEffects() {
 
 // ----------------------------------------------------
 // Neo-Brutalist Card with Spotlight & Pop
+// Note: Mobile padding adjusted to p-3.5 for optimal space utilization while preserving desktop sm:p-6
 // ----------------------------------------------------
 interface NeoCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -614,7 +623,7 @@ function NeoCard({ children, className = '', as: Component = 'div', ...props }: 
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`neo-box rounded-xl p-3.5 sm:p-5 relative overflow-hidden ${className}`}
+      className={`neo-box rounded-xl p-3.5 sm:p-6 relative overflow-hidden ${className}`}
       {...props}
     >
       {/* Dynamic Cursor Spotlight */}
@@ -622,7 +631,7 @@ function NeoCard({ children, className = '', as: Component = 'div', ...props }: 
         className="pointer-events-none absolute -inset-px transition-opacity duration-300 z-10"
         style={{
           opacity: mousePos.opacity,
-          background: `radial-gradient(350px circle at ${mousePos.x}px ${mousePos.y}px, rgba(2, 132, 199, 0.12), transparent 70%)`
+          background: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, rgba(2, 132, 199, 0.12), transparent 70%)`
         }}
       />
       {children}
@@ -680,29 +689,31 @@ const BlogFeed = () => {
   }, []);
 
   return (
-    <div id="blog" className="space-y-4 sm:space-y-6 mt-10 sm:mt-16 w-full relative z-10 scroll-mt-24">
+    <div id="blog" className="space-y-4 sm:space-y-6 mt-8 sm:mt-16 w-full relative z-10 scroll-mt-20 sm:scroll-mt-24">
       <div className="flex items-end justify-between px-1">
         <div>
           <TextReveal>
-            <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
+            <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
               Latest Articles
             </span>
           </TextReveal>
-          <TextReveal delay={0.06}>
+          <HeadingReveal>
             <h2 className="text-xl sm:text-3xl font-black font-display tracking-tight text-slate-900 dark:text-white">
               最新动态 / 博客归档
             </h2>
-          </TextReveal>
+          </HeadingReveal>
         </div>
-        <a
-          href="https://upxuu.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="neo-tag px-2.5 py-1 bg-white dark:bg-slate-800 text-xs sm:text-sm font-bold text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all flex items-center gap-1 cursor-pointer rounded-sm -skew-x-3 shrink-0"
-        >
-          <span>完整博客</span>
-          <ArrowUpRight className="w-3.5 h-3.5" />
-        </a>
+        <TextReveal delay={0.1}>
+          <a
+            href="https://upxuu.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="neo-tag px-2.5 py-1 sm:px-3 sm:py-1 bg-white dark:bg-slate-800 text-xs sm:text-sm font-bold text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all flex items-center gap-1 cursor-pointer rounded-sm -skew-x-3"
+          >
+            <span>完整博客</span>
+            <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </a>
+        </TextReveal>
       </div>
 
       {loading ? (
@@ -724,10 +735,9 @@ const BlogFeed = () => {
           {posts.map((post, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 30, scale: 0.96 }}
+              initial={{ opacity: 0, y: 25, scale: 0.96 }}
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.96 }}
-              viewport={{ once: false, amount: 0.15 }}
+              viewport={{ once: true, margin: '-30px' }}
               transition={{
                 type: 'spring',
                 damping: 18,
@@ -743,21 +753,25 @@ const BlogFeed = () => {
                 className="group flex flex-col justify-between h-full"
               >
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-mono mb-1.5">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-mono mb-1.5 sm:mb-2">
                     <span className="font-bold text-[#0284c7] dark:text-[#38bdf8] flex items-center gap-1 text-[11px] sm:text-xs">
                       <Flame className="w-3.5 h-3.5 text-[#f59e0b]" />
                       {post.pubDate}
                     </span>
                     <ArrowUpRight className="w-4 h-4 opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 text-[#0284c7] transition-all duration-300" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100 group-hover:text-[#0284c7] dark:group-hover:text-[#38bdf8] transition-colors line-clamp-2 mb-1.5 leading-snug">
-                    {post.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
-                    {post.description}
-                  </p>
+                  <TextReveal delay={0.05}>
+                    <h3 className="text-sm sm:text-lg font-black text-slate-800 dark:text-slate-100 group-hover:text-[#0284c7] dark:group-hover:text-[#38bdf8] transition-colors line-clamp-2 mb-1.5 sm:mb-2 leading-snug">
+                      {post.title}
+                    </h3>
+                  </TextReveal>
+                  <TextReveal delay={0.1}>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
+                      {post.description}
+                    </p>
+                  </TextReveal>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center text-xs font-black text-[#0284c7] dark:text-[#38bdf8] group-hover:translate-x-1 transition-transform">
+                <div className="mt-3 pt-2 sm:mt-4 sm:pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center text-xs font-black text-[#0284c7] dark:text-[#38bdf8] group-hover:translate-x-1 transition-transform">
                   阅读全文 →
                 </div>
               </NeoCard>
@@ -770,29 +784,33 @@ const BlogFeed = () => {
 };
 
 // ----------------------------------------------------
-// Markdown Custom Renderer
+// Markdown Custom Renderer with Text Entrance
 // ----------------------------------------------------
 const markdownComponents: any = {
   h2: () => null,
   p: ({ node, ...props }: any) => (
-    <p
-      className="text-slate-700 dark:text-slate-300 leading-relaxed text-xs sm:text-sm font-medium mb-2.5 last:mb-0"
-      {...props}
-    />
+    <TextReveal delay={0.05}>
+      <p
+        className="text-slate-700 dark:text-slate-300 leading-relaxed text-xs sm:text-base font-medium mb-2.5 sm:mb-3 last:mb-0"
+        {...props}
+      />
+    </TextReveal>
   ),
   ul: ({ node, ...props }: any) => (
-    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-1.5" {...props} />
+    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 my-2" {...props} />
   ),
   li: ({ node, ...props }: any) => (
-    <li
-      className="neo-tag bg-white/90 dark:bg-slate-800/90 rounded-lg p-2 sm:p-2.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 transition-transform hover:-translate-y-0.5"
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-[#0284c7] shrink-0"></span>
-      <span className="leading-snug">{props.children}</span>
-    </li>
+    <TextReveal delay={0.08}>
+      <li
+        className="neo-tag bg-white/90 dark:bg-slate-800/90 rounded-lg p-2 sm:p-3 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 transition-transform hover:-translate-y-0.5"
+      >
+        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#0284c7] shrink-0"></span>
+        <span className="leading-snug">{props.children}</span>
+      </li>
+    </TextReveal>
   ),
   strong: ({ node, ...props }: any) => (
-    <strong className="font-black text-[#0284c7] dark:text-[#38bdf8] bg-[#fde68a]/50 dark:bg-[#0284c7]/20 px-1 py-0.5 rounded-sm" {...props} />
+    <strong className="font-black text-[#0284c7] dark:text-[#38bdf8] bg-[#fde68a]/50 dark:bg-[#0284c7]/20 px-1.5 py-0.5 rounded-sm" {...props} />
   )
 };
 
@@ -837,65 +855,63 @@ function ModularAboutMe() {
   };
 
   return (
-    <div id="about" className="w-full mt-10 sm:mt-16 scroll-mt-24">
-      <div className="px-1 mb-4">
+    <div id="about" className="w-full mt-8 sm:mt-16 scroll-mt-20 sm:scroll-mt-24">
+      <div className="px-1 mb-3.5 sm:mb-5">
         <TextReveal>
-          <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
+          <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
             Profile & Bio
           </span>
         </TextReveal>
-        <TextReveal delay={0.06}>
+        <HeadingReveal>
           <h2 className="text-xl sm:text-3xl font-black font-display tracking-tight text-slate-900 dark:text-white">
             关于我 / 多维档案
           </h2>
-        </TextReveal>
+        </HeadingReveal>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {sections.map((sec, idx) => (
           <motion.div
             key={sec.title}
-            initial={{ opacity: 0, y: 30, scale: 0.96 }}
+            initial={{ opacity: 0, y: 25, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.96 }}
-            viewport={{ once: false, amount: 0.15 }}
+            viewport={{ once: true, margin: '-30px' }}
             transition={{
               type: 'spring',
               damping: 18,
               stiffness: 220,
-              delay: (idx % 2) * 0.08
+              delay: idx * 0.06
             }}
             className={getGridSpan(sec.title, idx)}
           >
-            <NeoCard className="h-full flex flex-col justify-between">
+            <NeoCard className={`h-full flex flex-col justify-between ${
+              sec.title.toLowerCase().includes('philosophy')
+                ? 'bg-[#fde68a]/30 dark:bg-amber-950/20 border-[#f59e0b]'
+                : ''
+            }`}>
               <div>
-                <div className="flex items-center gap-2 mb-2 sm:mb-3 pb-2 border-b border-slate-200 dark:border-slate-800">
-                  <div className="p-1 rounded bg-[#fde68a] border border-[#0284c7]">
-                    {getSectionIcon(sec.title)}
+                <div className="flex items-center justify-between pb-2 mb-2 sm:pb-3 sm:mb-3 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 sm:gap-2.5">
+                    <div className="p-1 sm:p-1.5 rounded-md bg-[#fde68a] border-2 border-[#0284c7] shadow-[1.5px_1.5px_0px_0px_#0284c7]">
+                      {getSectionIcon(sec.title)}
+                    </div>
+                    <TextReveal delay={0.05}>
+                      <h3 className="font-black text-sm sm:text-lg text-slate-900 dark:text-white tracking-tight">
+                        {sec.title === 'Hello World' ? '👋 你好，世界！' : sec.title}
+                      </h3>
+                    </TextReveal>
                   </div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white tracking-wide">
-                    {sec.title}
-                  </h3>
+                  <span className="text-[10px] sm:text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    0{idx + 1}
+                  </span>
                 </div>
 
-                <div className="text-slate-600 dark:text-slate-300">
+                <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed">
                   <Markdown components={markdownComponents}>
                     {sec.content}
                   </Markdown>
                 </div>
               </div>
-
-              {sec.title.toLowerCase().includes('goal') && (
-                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-mono font-bold text-[#0284c7] dark:text-[#38bdf8]">
-                  <span className="flex items-center gap-1">
-                    <Trophy className="w-3.5 h-3.5 text-[#f59e0b]" />
-                    <span>目标设定 · 笃行致远</span>
-                  </span>
-                  <span className="text-[11px] bg-[#fde68a] dark:bg-slate-800 text-[#0284c7] px-2 py-0.5 rounded border border-[#0284c7]">
-                    PROGRESSING
-                  </span>
-                </div>
-              )}
             </NeoCard>
           </motion.div>
         ))}
@@ -905,92 +921,34 @@ function ModularAboutMe() {
 }
 
 // ----------------------------------------------------
-// GitHub Repos Horizontal Carousel
+// GitHub Projects Horizontal Marquee
 // ----------------------------------------------------
-interface Repo {
-  id: number;
-  name: string;
-  description: string;
-  html_url: string;
-  stargazers_count: number;
-  forks_count: number;
-  language: string;
-}
-
-const FALLBACK_REPOS: Repo[] = [
-  {
-    id: 1,
-    name: "astro-theme-pure",
-    description: "一个基于 Astro 的轻量、干净的高性能个人站点主题",
-    html_url: "https://github.com/ImUpXuu",
-    stargazers_count: 42,
-    forks_count: 8,
-    language: "Astro"
-  },
-  {
-    id: 2,
-    name: "upxuu-workspace",
-    description: "个人工作台与多站点边缘路由反代配置",
-    html_url: "https://github.com/ImUpXuu",
-    stargazers_count: 19,
-    forks_count: 3,
-    language: "Python"
-  },
-  {
-    id: 3,
-    name: "mini-dock-scripts",
-    description: "Linux 与轻量云服务器自动化维护与监控脚本",
-    html_url: "https://github.com/ImUpXuu",
-    stargazers_count: 15,
-    forks_count: 2,
-    language: "Shell"
-  },
-  {
-    id: 4,
-    name: "neo-personal-page",
-    description: "波普新野兽派个人交互主页 SPA",
-    html_url: "https://github.com/ImUpXuu",
-    stargazers_count: 31,
-    forks_count: 5,
-    language: "TypeScript"
-  }
-];
-
 function GithubProjects() {
-  const [repos, setRepos] = useState<Repo[]>(FALLBACK_REPOS);
-  const [isHovered, setIsHovered] = useState(false);
+  const [repos, setRepos] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     fetch('https://api.github.com/users/ImUpXuu/repos?sort=updated&per_page=8')
-      .then((res) => {
-        if (!res.ok) throw new Error('API limit or network error');
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setRepos(data);
-        }
+        if (Array.isArray(data)) setRepos(data);
       })
-      .catch(() => {
-        setRepos(FALLBACK_REPOS);
-      });
+      .catch(console.error);
   }, []);
 
-  // Smooth continuous marquee scroll
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || repos.length === 0 || isHovered) return;
 
     let animationId: number;
-    let lastTimestamp: number = 0;
+    let lastTime = performance.now();
 
     const scroll = (time: number) => {
-      if (!lastTimestamp) lastTimestamp = time;
-      const dt = time - lastTimestamp;
-      lastTimestamp = time;
+      const dt = time - lastTime;
+      lastTime = time;
 
-      if (!isHovered && el) {
+      if (el) {
         el.scrollLeft += dt * 0.045;
         if (el.scrollLeft >= el.scrollWidth / 2) {
           el.scrollLeft = 0;
@@ -1001,40 +959,39 @@ function GithubProjects() {
 
     animationId = requestAnimationFrame(scroll);
     return () => cancelAnimationFrame(animationId);
-  }, [isHovered]);
+  }, [repos, isHovered]);
+
+  if (repos.length === 0) return null;
 
   return (
-    <motion.div
+    <div
       id="projects"
-      initial={{ opacity: 0, y: 35, scale: 0.96 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.96 }}
-      viewport={{ once: false, amount: 0.15 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
-      className="w-full mt-10 sm:mt-16 scroll-mt-24"
+      className="w-full mt-8 sm:mt-16 scroll-mt-20 sm:scroll-mt-24"
     >
-      <div className="flex items-end justify-between px-1 mb-4">
+      <div className="flex items-end justify-between px-1 mb-3.5 sm:mb-5">
         <div>
           <TextReveal>
-            <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
+            <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
               Open Source
             </span>
           </TextReveal>
-          <TextReveal delay={0.06}>
+          <HeadingReveal>
             <h2 className="text-xl sm:text-3xl font-black font-display tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               开源项目
             </h2>
-          </TextReveal>
+          </HeadingReveal>
         </div>
-        <a
-          href="https://github.com/ImUpXuu"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="neo-tag px-2.5 py-1 bg-white dark:bg-slate-800 text-xs sm:text-sm font-bold text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all flex items-center gap-1 cursor-pointer rounded-sm -skew-x-3 shrink-0"
-        >
-          <span>GitHub 仓库</span>
-          <ArrowUpRight className="w-3.5 h-3.5" />
-        </a>
+        <TextReveal delay={0.1}>
+          <a
+            href="https://github.com/ImUpXuu"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="neo-tag px-2.5 py-1 sm:px-3 sm:py-1 bg-white dark:bg-slate-800 text-xs sm:text-sm font-bold text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all flex items-center gap-1 cursor-pointer rounded-sm -skew-x-3"
+          >
+            <span>GitHub 仓库</span>
+            <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </a>
+        </TextReveal>
       </div>
 
       <div
@@ -1052,35 +1009,39 @@ function GithubProjects() {
             href={repo.html_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 w-64 sm:w-80 flex flex-col justify-between group"
+            className="flex-shrink-0 w-[80vw] max-w-[280px] sm:w-80 flex flex-col justify-between group"
           >
             <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center justify-between gap-2 mb-2 sm:mb-2.5">
                 <div className="flex items-center gap-2 truncate">
                   <div className="p-1 rounded bg-[#fde68a] border border-[#0284c7] text-[#0284c7] shrink-0">
                     <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
-                  <span className="font-black text-xs sm:text-base text-slate-900 dark:text-white group-hover:text-[#0284c7] transition-colors truncate">
-                    {repo.name}
-                  </span>
+                  <TextReveal delay={0.04}>
+                    <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0284c7] transition-colors truncate">
+                      {repo.name}
+                    </span>
+                  </TextReveal>
                 </div>
-                <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284c7] shrink-0" />
+                <ArrowUpRight className="w-4 h-4 text-[#0284c7] shrink-0" />
               </div>
 
-              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 h-8 sm:h-9 mb-3">
-                {repo.description || '探索编程与独立开发的个人项目'}
-              </p>
+              <TextReveal delay={0.08}>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 h-8 sm:h-9 mb-2.5 sm:mb-4">
+                  {repo.description || '探索编程与独立开发的个人项目'}
+                </p>
+              </TextReveal>
             </div>
 
-            <div className="flex items-center gap-2.5 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 pt-2.5 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2.5 sm:gap-3 text-[11px] sm:text-xs font-mono font-bold text-slate-600 dark:text-slate-400 pt-2 sm:pt-3 border-t border-slate-200 dark:border-slate-800">
               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950/60 text-[#0284c7] dark:text-[#38bdf8]">
                 <span>{repo.language || 'Code'}</span>
               </span>
-              <span className="flex items-center gap-0.5 text-[#f59e0b]">
+              <span className="flex items-center gap-1 text-[#f59e0b]">
                 <span>★</span>
                 <span>{repo.stargazers_count}</span>
               </span>
-              <span className="flex items-center gap-0.5">
+              <span className="flex items-center gap-1">
                 <span>⑂</span>
                 <span>{repo.forks_count}</span>
               </span>
@@ -1088,7 +1049,7 @@ function GithubProjects() {
           </NeoCard>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1113,12 +1074,14 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hearts, setHearts] = useState<{ id: number; x: number }[]>([]);
   const [isAtBottom, setIsAtBottom] = useState(false);
+  const lenisRef = useRef<Lenis | null>(null);
 
+  // Monitor scroll position
   useEffect(() => {
     const handleScroll = () => {
       const { scrollY } = window;
       const { scrollHeight, clientHeight } = document.documentElement;
-      if (scrollY + clientHeight >= scrollHeight - 60) {
+      if (scrollY + clientHeight >= scrollHeight - 70) {
         setIsAtBottom(true);
       } else {
         setIsAtBottom(false);
@@ -1127,6 +1090,70 @@ export default function App() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Safe Lenis Scroll Setup:
+  // ONLY run virtual scroll on non-touch desktop.
+  // On mobile/touch devices, use native browser touch momentum to prevent any touch-lock freezing.
+  useEffect(() => {
+    const isTouch = 
+      typeof window !== 'undefined' && 
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches);
+
+    if (isTouch) {
+      // Mobile uses native fluid scrolling - never freezes
+      return;
+    }
+
+    try {
+      const lenis = new Lenis({
+        duration: 1.0,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+        smoothWheel: true,
+        wheelMultiplier: 1.0,
+        syncTouch: false,
+      });
+      lenisRef.current = lenis;
+
+      let frameId: number;
+      function raf(time: number) {
+        lenis.raf(time);
+        frameId = requestAnimationFrame(raf);
+      }
+      frameId = requestAnimationFrame(raf);
+
+      return () => {
+        cancelAnimationFrame(frameId);
+        lenis.destroy();
+        lenisRef.current = null;
+      };
+    } catch (e) {
+      console.warn('Lenis initialization bypassed, using native smooth scroll', e);
+    }
+  }, []);
+
+  // Bulletproof Unified Scroll Function
+  const performScroll = (target: HTMLElement | number) => {
+    if (typeof target === 'number') {
+      if (lenisRef.current) {
+        try {
+          lenisRef.current.scrollTo(target, { duration: 1 });
+          return;
+        } catch {}
+      }
+      window.scrollTo({ top: target, behavior: 'smooth' });
+      return;
+    }
+
+    if (lenisRef.current) {
+      try {
+        lenisRef.current.scrollTo(target, { offset: -70, duration: 1 });
+        return;
+      } catch {}
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Typewriter effect
   useEffect(() => {
@@ -1175,34 +1202,37 @@ export default function App() {
     setIsDark(!isDark);
   };
 
-  // 100% Reliable Native Smooth Scrolling
   const scrollToSection = (id: string) => {
     sfx.playPop(900, 0.05);
     const el = document.getElementById(id);
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 75;
-      window.scrollTo({ top, behavior: 'smooth' });
+      performScroll(el);
     }
   };
 
-  // Smart floating scroll down button: jumps sequentially through all sections
-  const handleScrollDownNext = () => {
-    sfx.playPop(1000, 0.06);
+  // Smart Downward Scroll Button:
+  // Dynamically computes the next section in order so clicking at "开源项目" or any section ALWAYS scrolls forward!
+  const handleScrollDown = () => {
+    sfx.playPop(900, 0.05);
     const sectionIds = ['sites', 'projects', 'about', 'terminal', 'blog'];
-    const currentY = window.scrollY;
+    const currentScrollY = window.scrollY;
 
     for (const id of sectionIds) {
       const el = document.getElementById(id);
       if (el) {
-        const top = el.getBoundingClientRect().top + window.scrollY;
-        if (top > currentY + 90) {
-          window.scrollTo({ top: top - 75, behavior: 'smooth' });
+        const rect = el.getBoundingClientRect();
+        const elementTop = rect.top + currentScrollY;
+        // Section is below current position by at least 80px
+        if (elementTop > currentScrollY + 80) {
+          performScroll(el);
           return;
         }
       }
     }
-    // If at the end, scroll to footer
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+    // If past all sections, scroll to the footer
+    const { scrollHeight, clientHeight } = document.documentElement;
+    performScroll(scrollHeight - clientHeight);
   };
 
   const getSiteIcon = (index: number) => {
@@ -1216,10 +1246,10 @@ export default function App() {
 
   const getSocialIcon = (iconName: string) => {
     switch (iconName) {
-      case 'github': return <Github size={16} />;
-      case 'mail': return <Mail size={16} />;
-      case 'globe': return <Globe size={16} />;
-      default: return <ExternalLink size={16} />;
+      case 'github': return <Github size={16} className="sm:w-[18px] sm:h-[18px]" />;
+      case 'mail': return <Mail size={16} className="sm:w-[18px] sm:h-[18px]" />;
+      case 'globe': return <Globe size={16} className="sm:w-[18px] sm:h-[18px]" />;
+      default: return <ExternalLink size={16} className="sm:w-[18px] sm:h-[18px]" />;
     }
   };
 
@@ -1228,7 +1258,7 @@ export default function App() {
       <MouseEffects />
 
       {/* UpXuu signature Top Scroll Progress Line */}
-      <div className="fixed top-0 left-0 w-full h-[4px] bg-transparent z-[120] pointer-events-none">
+      <div className="fixed top-0 left-0 w-full h-[4.5px] bg-transparent z-[120] pointer-events-none">
         <motion.div
           className="h-full bg-gradient-to-r from-[#0284c7] via-[#0ea5e9] to-[#f59e0b] origin-left"
           style={{ scaleX }}
@@ -1236,7 +1266,7 @@ export default function App() {
       </div>
 
       {/* Fixed Ambient Background */}
-      <div className="fixed inset-0 w-full h-full bg-[#faf8f5] dark:bg-slate-900 transition-colors duration-700 z-0 overflow-hidden">
+      <div className="fixed inset-0 w-full h-full bg-[#faf8f5] dark:bg-slate-900 transition-colors duration-700 z-0 overflow-hidden pointer-events-none">
         <AnimatePresence>
           {bgImage && (
             <motion.div
@@ -1258,12 +1288,12 @@ export default function App() {
       </div>
 
       {/* UpXuu Style Top Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b-4 border-[#0284c7] px-3 py-2 sm:px-6 sm:py-2.5 shadow-[0px_3px_0px_0px_rgba(2,132,199,0.15)]">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b-4 border-[#0284c7] px-3 py-2 sm:px-6 sm:py-3 shadow-[0px_4px_0px_0px_rgba(2,132,199,0.15)]">
         <div className="max-w-[1200px] mx-auto flex justify-between items-center gap-2">
           {/* Logo with signature Skewed Avatar box */}
           <button 
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-2 text-left cursor-pointer group"
+            onClick={() => performScroll(0)}
+            className="flex items-center gap-2 sm:gap-2.5 text-left cursor-pointer group"
           >
             <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-[#fde68a] border-2 border-[#0284c7] font-black transform -skew-x-12 shadow-[2px_2px_0px_0px_#0284c7] overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
               <img src={siteConfig.avatar} alt="Logo" className="w-full h-full object-cover transform skew-x-12" />
@@ -1276,35 +1306,35 @@ export default function App() {
             </div>
           </button>
 
-          {/* Nav links with UpXuu Signature Skewed Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Nav links: Compact on mobile, untouched on desktop */}
+          <div className="flex items-center gap-1 sm:gap-2.5">
             <button
               onClick={() => scrollToSection('sites')}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden xs:block"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-[11px] sm:text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1px_1px_0px_0px_#fde68a] sm:shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3"
             >
               站点
             </button>
             <button
               onClick={() => scrollToSection('projects')}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden sm:block"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-[11px] sm:text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1px_1px_0px_0px_#fde68a] sm:shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3"
             >
               开源
             </button>
             <button
               onClick={() => scrollToSection('about')}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden sm:block"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-[11px] sm:text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1px_1px_0px_0px_#fde68a] sm:shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden xs:block"
             >
               关于
             </button>
             <button
               onClick={() => scrollToSection('terminal')}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden md:block"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-[11px] sm:text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1px_1px_0px_0px_#fde68a] sm:shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3 hidden sm:block"
             >
               终端
             </button>
             <button
               onClick={() => scrollToSection('blog')}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-[#0284c7] font-black uppercase text-[11px] sm:text-xs tracking-wider rounded-sm text-[#0284c7] dark:text-[#38bdf8] shadow-[1px_1px_0px_0px_#fde68a] sm:shadow-[1.5px_1.5px_0px_0px_#fde68a] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer transform -skew-x-3"
             >
               动态
             </button>
@@ -1312,9 +1342,10 @@ export default function App() {
             {/* Dark Mode */}
             <button
               onClick={toggleTheme}
-              className="p-1 sm:p-1.5 rounded border-2 border-[#0284c7] bg-white dark:bg-slate-800 shadow-[1.5px_1.5px_0px_0px_#0284c7] text-[#0284c7] transition-all cursor-pointer"
+              className="p-1 sm:p-1.5 rounded border-2 border-[#0284c7] bg-white dark:bg-slate-800 shadow-[1px_1px_0px_0px_#0284c7] sm:shadow-[1.5px_1.5px_0px_0px_#0284c7] text-[#0284c7] transition-all cursor-pointer"
+              title="切换主题"
             >
-              {isDark ? <Sun size={14} className="text-[#f59e0b]" /> : <Moon size={14} />}
+              {isDark ? <Sun size={14} className="text-[#f59e0b] sm:w-[15px] sm:h-[15px]" /> : <Moon size={14} className="sm:w-[15px] sm:h-[15px]" />}
             </button>
 
             {/* External Blog Direct Link */}
@@ -1322,10 +1353,10 @@ export default function App() {
               href="https://upxuu.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2 py-0.5 sm:px-3 sm:py-1 bg-[#0284c7] text-white font-black text-xs uppercase tracking-wider rounded-sm border-2 border-[#0284c7] shadow-[2px_2px_0px_0px_#f59e0b] hover:bg-[#0369a1] hover:shadow-[3px_3px_0px_0px_#fde68a] transition-all flex items-center gap-1 transform -skew-x-6"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 bg-[#0284c7] text-white font-black text-[11px] sm:text-xs uppercase tracking-wider rounded-sm border-2 border-[#0284c7] shadow-[1.5px_1.5px_0px_0px_#f59e0b] sm:shadow-[2px_2px_0px_0px_#f59e0b] hover:bg-[#0369a1] transition-all flex items-center gap-1 transform -skew-x-6"
             >
-              <span>主站博客</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span>博客</span>
+              <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </a>
           </div>
         </div>
@@ -1334,8 +1365,11 @@ export default function App() {
       {/* Main Content Area */}
       <main className="relative z-10 w-full flex flex-col items-center pt-14 sm:pt-16">
         
-        {/* Hero Section with Explosive Entrance Animations */}
-        <section className="min-h-[72vh] sm:min-h-screen w-full flex flex-col items-center justify-center p-3 sm:p-6 relative pt-14 sm:pt-20 pb-10 sm:pb-16">
+        {/* Hero Section:
+            Mobile: min-h-[80vh], pt-12 pb-6, tight spacing for high space utilization
+            Desktop: min-h-screen, pt-20 pb-16 (completely unchanged)
+        */}
+        <section className="min-h-[80vh] sm:min-h-screen w-full flex flex-col items-center justify-center p-3 sm:p-6 relative pt-12 pb-6 sm:pt-20 sm:pb-16">
           <div className="w-full max-w-2xl mx-auto flex flex-col items-center text-center">
             <AnimatePresence>
               {isLoaded && (
@@ -1351,63 +1385,99 @@ export default function App() {
                   }}
                   className="flex flex-col items-center w-full"
                 >
-                  {/* Avatar: Bouncy Pop & Rotate In */}
+                  {/* Avatar: Compact on mobile, spacious on desktop */}
                   <motion.div
                     variants={{
-                      hidden: { scale: 0, rotate: -25 },
+                      hidden: { opacity: 0, scale: 0.2, rotate: -25 },
                       visible: { 
+                        opacity: 1, 
                         scale: 1, 
-                        rotate: 0, 
-                        transition: { type: 'spring', damping: 12, stiffness: 240 } 
+                        rotate: 0,
+                        transition: { type: 'spring', damping: 12, stiffness: 180 }
                       }
                     }}
-                    className="relative mb-4 sm:mb-6 group cursor-pointer"
-                    onClick={() => sfx.playPop(1200, 0.08)}
+                    className="relative mb-4 sm:mb-8 group"
                   >
-                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl p-1 bg-[#fde68a] border-4 border-[#0284c7] shadow-[5px_5px_0px_0px_#0284c7] group-hover:shadow-[7px_7px_0px_0px_#f59e0b] group-hover:-translate-x-1 group-hover:-translate-y-1 transition-all overflow-hidden rotate-[-2deg] group-hover:rotate-0">
+                    {/* Shadow Block Backdrop */}
+                    <div className="absolute inset-0 bg-[#fde68a] border-4 border-[#0284c7] rounded-2xl sm:rounded-3xl transform rotate-6 shadow-[3px_3px_0px_0px_#0284c7] sm:shadow-[5px_5px_0px_0px_#0284c7] group-hover:rotate-12 transition-transform duration-300"></div>
+                    
+                    <div className="relative p-1 bg-white border-4 border-[#0284c7] rounded-2xl sm:rounded-3xl shadow-[3px_3px_0px_0px_#f59e0b] sm:shadow-[5px_5px_0px_0px_#f59e0b] overflow-hidden">
                       <img
                         src={siteConfig.avatar}
                         alt={siteConfig.name}
-                        className="w-full h-full object-cover rounded-xl"
+                        className="w-24 h-24 sm:w-40 sm:h-40 rounded-xl sm:rounded-2xl object-cover transform group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
-                    {/* Status Pill Badge */}
-                    <div className="absolute -bottom-2 -right-2 px-2 py-0.5 bg-emerald-400 text-slate-900 border-2 border-[#0284c7] text-[10px] font-black uppercase rounded-md shadow-[1.5px_1.5px_0px_0px_#0284c7] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
-                      <span>ONLINE</span>
+
+                    {/* Skewed Status Badge */}
+                    <div className="absolute -bottom-2.5 sm:-bottom-3 left-1/2 -translate-x-1/2 bg-[#fde68a] border-2 border-[#0284c7] px-2 py-0.5 sm:px-3 sm:py-0.5 rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] sm:shadow-[2px_2px_0px_0px_#0284c7] flex items-center gap-1 sm:gap-1.5 font-black text-[10px] sm:text-xs text-[#0284c7] transform -skew-x-6 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#10b981] animate-ping"></span>
+                      <span>ONLINE · UPXUU</span>
                     </div>
                   </motion.div>
 
-                  {/* Title & Badge */}
+                  {/* Greeting & Headline with Entrance Effects */}
                   <motion.div
                     variants={{
-                      hidden: { opacity: 0, y: 25 },
-                      visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+                      hidden: { opacity: 0, y: 20, scale: 0.85 },
+                      visible: { 
+                        opacity: 1, 
+                        y: 0, 
+                        scale: 1,
+                        transition: { type: 'spring', damping: 14, stiffness: 200 }
+                      }
                     }}
-                    className="space-y-2 mb-4 sm:mb-6"
+                    className="mb-1.5 sm:mb-2"
                   >
-                    <div className="inline-block px-3 py-1 bg-white/90 dark:bg-slate-800/90 border-2 border-[#0284c7] rounded shadow-[2px_2px_0px_0px_#0284c7] transform -skew-x-6">
-                      <span className="text-xs sm:text-sm font-black text-[#0284c7] dark:text-[#38bdf8] tracking-widest uppercase">
-                        {siteConfig.title}
-                      </span>
-                    </div>
-
-                    <h1 className="text-3xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-slate-900 dark:text-white leading-none">
-                      HI, I'M <span className="text-[#0284c7] dark:text-[#38bdf8] drop-shadow-[2px_2px_0px_#fde68a]">{siteConfig.name}</span>
-                    </h1>
+                    <span className="neo-tag px-2.5 py-0.5 sm:px-3 sm:py-1 bg-white dark:bg-slate-800 text-[#0284c7] font-black text-[11px] sm:text-sm uppercase tracking-widest inline-block -skew-x-6">
+                      ✨ WELCOME TO MY CORNER
+                    </span>
                   </motion.div>
 
-                  {/* Typewriter with Floating Hearts */}
+                  <motion.h1
+                    variants={{
+                      hidden: { opacity: 0, y: 30, scale: 0.9 },
+                      visible: { 
+                        opacity: 1, 
+                        y: 0, 
+                        scale: 1,
+                        transition: { type: 'spring', damping: 12, stiffness: 180 }
+                      }
+                    }}
+                    className="text-3xl sm:text-6xl font-black font-display tracking-tight text-slate-900 dark:text-white mb-2 sm:mb-3"
+                  >
+                    HI, I'M <span className="text-[#0284c7] dark:text-[#38bdf8] drop-shadow-[2px_2px_0px_#fde68a]">{siteConfig.name}</span>
+                  </motion.h1>
+
+                  {/* Title pill */}
                   <motion.div
                     variants={{
-                      hidden: { opacity: 0, y: 25 },
+                      hidden: { opacity: 0, scale: 0.6 },
+                      visible: { 
+                        opacity: 1, 
+                        scale: 1, 
+                        transition: { type: 'spring', damping: 15, stiffness: 220 }
+                      }
+                    }}
+                    className="mb-3.5 sm:mb-6"
+                  >
+                    <div className="neo-box px-3 py-1 sm:px-4 sm:py-1.5 rounded-md text-xs sm:text-sm font-mono font-black text-[#0284c7] dark:text-[#38bdf8] inline-flex items-center gap-1.5 sm:gap-2">
+                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#f59e0b] rounded-full"></span>
+                      <span>{siteConfig.title}</span>
+                    </div>
+                  </motion.div>
+
+                  {/* Typewriter with Floating Hearts: Compact on mobile */}
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
                       visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
                     }}
-                    className="mb-5 sm:mb-8 max-w-lg px-2 w-full min-h-[3.2rem] sm:min-h-[4rem] flex items-center justify-center"
+                    className="mb-4 sm:mb-8 max-w-lg px-2 sm:px-3 w-full min-h-[2.75rem] sm:min-h-[4rem] flex items-center justify-center"
                   >
-                    <div className="neo-tag px-3 sm:px-4 py-2 rounded-lg bg-white/90 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 leading-relaxed text-xs sm:text-base font-bold text-center relative inline-flex items-center flex-wrap justify-center font-mono">
+                    <div className="neo-tag px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-lg bg-white/90 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 leading-relaxed text-xs sm:text-lg font-bold text-center relative inline-flex items-center flex-wrap justify-center font-mono">
                       <span>{descText}</span>
-                      <span className="inline-block w-[2.5px] h-[1.15em] ml-1 bg-[#0284c7] animate-[pulse_1s_step-end_infinite] align-middle rounded-full relative">
+                      <span className="inline-block w-[2.5px] sm:w-[3px] h-[1.15em] ml-1 bg-[#0284c7] animate-[pulse_1s_step-end_infinite] align-middle rounded-full relative">
                         <AnimatePresence>
                           {hearts.map((h) => (
                             <motion.span
@@ -1426,13 +1496,13 @@ export default function App() {
                     </div>
                   </motion.div>
 
-                  {/* Social Buttons: Staggered spring bounce */}
+                  {/* Social Buttons */}
                   <motion.div
                     variants={{
                       hidden: { opacity: 0 },
                       visible: {
                         opacity: 1,
-                        transition: { staggerChildren: 0.08 }
+                        transition: { staggerChildren: 0.06 }
                       }
                     }}
                     className="flex flex-wrap justify-center gap-2 sm:gap-3"
@@ -1444,15 +1514,15 @@ export default function App() {
                         target="_blank"
                         rel="noopener noreferrer"
                         variants={{
-                          hidden: { opacity: 0, y: 20, scale: 0.7 },
+                          hidden: { opacity: 0, y: 15, scale: 0.8 },
                           visible: { 
                             opacity: 1, 
                             y: 0, 
-                            scale: 1, 
-                            transition: { type: 'spring', damping: 14, stiffness: 220 } 
+                            scale: 1,
+                            transition: { type: 'spring', damping: 14, stiffness: 220 }
                           }
                         }}
-                        className="neo-box flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm font-black text-[#0284c7] dark:text-[#38bdf8] hover:text-white hover:bg-[#0284c7] transition-all cursor-pointer transform -skew-x-3"
+                        className="neo-box flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-md text-xs sm:text-sm font-black text-[#0284c7] dark:text-[#38bdf8] hover:text-white hover:bg-[#0284c7] transition-all cursor-pointer transform -skew-x-3"
                         aria-label={social.label}
                       >
                         {getSocialIcon(social.icon)}
@@ -1467,36 +1537,34 @@ export default function App() {
           </div>
         </section>
 
-        {/* Content Section Container */}
-        <section className="w-full max-w-4xl mx-auto px-3 sm:px-6 pb-24">
+        {/* Content Section Container: High space efficiency on mobile */}
+        <section className="w-full max-w-4xl mx-auto px-3 sm:px-6 pb-20 sm:pb-28">
 
-          {/* My Sites (我的站点) - Highly Optimized for Mobile 2-Column */}
+          {/* My Sites (我的站点) */}
           {siteConfig.sites && siteConfig.sites.length > 0 && (
-            <div id="sites" className="w-full scroll-mt-24">
-              <div className="flex items-end justify-between px-1 mb-3 sm:mb-4">
+            <div id="sites" className="w-full scroll-mt-20 sm:scroll-mt-24">
+              <div className="flex items-end justify-between px-1 mb-3.5 sm:mb-5">
                 <div>
                   <TextReveal>
-                    <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
+                    <span className="px-2 py-0.5 bg-[#fde68a] text-[#0284c7] font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-sm shadow-[1.5px_1.5px_0px_0px_#0284c7] border border-[#0284c7] inline-block -skew-x-6 mb-1">
                       Web Services
                     </span>
                   </TextReveal>
-                  <TextReveal delay={0.06}>
+                  <HeadingReveal>
                     <h2 className="text-xl sm:text-3xl font-black font-display tracking-tight text-slate-900 dark:text-white">
                       我的站点 / 服务导航
                     </h2>
-                  </TextReveal>
+                  </HeadingReveal>
                 </div>
               </div>
 
-              {/* 2-column on mobile, 4-column on desktop */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {siteConfig.sites.map((site, index) => (
                   <motion.div
                     key={index}
-                    initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                    initial={{ opacity: 0, y: 25, scale: 0.96 }}
                     whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                    viewport={{ once: false, amount: 0.15 }}
+                    viewport={{ once: true, margin: '-30px' }}
                     transition={{
                       type: 'spring',
                       damping: 18,
@@ -1509,28 +1577,32 @@ export default function App() {
                       href={site.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex flex-col justify-between h-full p-3 sm:p-4"
+                      className="group flex flex-col justify-between h-full"
                     >
                       <div>
-                        <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-                          <div className="p-1.5 sm:p-2 rounded-lg bg-[#fde68a] border-2 border-[#0284c7] shadow-[1.5px_1.5px_0px_0px_#0284c7] group-hover:scale-110 transition-transform">
+                        <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
+                          <div className="p-2 sm:p-2.5 rounded-lg bg-[#fde68a] border-2 border-[#0284c7] shadow-[1.5px_1.5px_0px_0px_#0284c7] sm:shadow-[2px_2px_0px_0px_#0284c7] group-hover:scale-110 transition-transform">
                             {getSiteIcon(index)}
                           </div>
-                          <span className="p-0.5 text-[#0284c7] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
-                            <ArrowUpRight className="w-4 h-4 font-black" />
+                          <span className="p-1 rounded text-[#0284c7] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                            <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 font-black" />
                           </span>
                         </div>
-                        <h3 className="text-xs sm:text-base font-black text-slate-900 dark:text-white group-hover:text-[#0284c7] transition-colors truncate">
-                          {site.name}
-                        </h3>
-                        <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1 line-clamp-1 sm:line-clamp-2">
-                          {site.description}
-                        </p>
+                        <TextReveal delay={0.04}>
+                          <h3 className="text-sm sm:text-lg font-black text-slate-900 dark:text-white group-hover:text-[#0284c7] transition-colors">
+                            {site.name}
+                          </h3>
+                        </TextReveal>
+                        <TextReveal delay={0.08}>
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-0.5 sm:mt-1">
+                            {site.description}
+                          </p>
+                        </TextReveal>
                       </div>
 
-                      <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 text-[10px] sm:text-[11px] font-mono font-bold text-slate-500 truncate flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shrink-0"></span>
-                        <span className="truncate">{site.url.replace(/^https?:\/\//, '')}</span>
+                      <div className="mt-3 pt-2 sm:mt-4 sm:pt-3 border-t border-slate-200 dark:border-slate-800 text-[10px] sm:text-[11px] font-mono font-bold text-slate-500 truncate flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#10b981]"></span>
+                        <span>{site.url.replace(/^https?:\/\//, '')}</span>
                       </div>
                     </NeoCard>
                   </motion.div>
@@ -1545,51 +1617,59 @@ export default function App() {
           {/* Modular About Me Section */}
           <ModularAboutMe />
 
-          {/* Python Terminal HUD (Scroll In-View Typewriter Engine) */}
+          {/* Cyber Terminal HUD: Activated on scroll into view with real code typing */}
           <CyberTerminal />
 
           {/* RSS Blog Feed */}
           <BlogFeed />
 
           {/* UpXuu Style Footer */}
-          <footer className="mt-16 sm:mt-24 pt-6 sm:pt-8 border-t-2 border-[#0284c7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono font-bold text-slate-600 dark:text-slate-400 text-center sm:text-left">
-            <div>
-              <span>© {new Date().getFullYear()} {siteConfig.name}</span>
-              <span className="mx-2">·</span>
-              <span className="text-[#0284c7] dark:text-[#38bdf8]">逐光而上，笃行致远</span>
-            </div>
-            <button
-              onClick={() => {
-                sfx.playPop(1100, 0.08);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="neo-tag px-3 py-1 bg-white dark:bg-slate-800 text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer rounded-sm flex items-center gap-1.5 -skew-x-3"
-            >
-              <span>回到顶部</span>
-              <ArrowUp className="w-3.5 h-3.5" />
-            </button>
+          <footer className="mt-12 sm:mt-24 pt-5 sm:pt-8 border-t-2 border-[#0284c7] flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-xs font-mono font-bold text-slate-600 dark:text-slate-400 text-center sm:text-left">
+            <TextReveal>
+              <div>
+                <span>© {new Date().getFullYear()} {siteConfig.name}</span>
+                <span className="mx-2">·</span>
+                <span className="text-[#0284c7] dark:text-[#38bdf8]">逐光而上，笃行致远</span>
+              </div>
+            </TextReveal>
+            <TextReveal delay={0.06}>
+              <button
+                onClick={() => {
+                  sfx.playPop(1100, 0.08);
+                  performScroll(0);
+                }}
+                className="neo-tag px-3 py-1 bg-white dark:bg-slate-800 text-[#0284c7] dark:text-[#38bdf8] hover:bg-[#0284c7] hover:text-white transition-all cursor-pointer rounded-sm flex items-center gap-1.5 -skew-x-3 text-xs"
+              >
+                <span>回到顶部</span>
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+            </TextReveal>
           </footer>
 
         </section>
 
-        {/* Floating Scroll Down Indicator with Smart Sequential Section Jumping */}
+        {/* Floating Downward Navigation Indicator:
+            Clicking dynamically finds the next section in order so it ALWAYS scrolls smoothly down,
+            even from "开源项目" or any other position on the page.
+        */}
         <AnimatePresence>
           {!isAtBottom && (
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, y: [0, 8, 0] }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1, y: [0, 8, 0] }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{
-                opacity: { duration: 0.3 },
+                opacity: { duration: 0.25 },
+                scale: { duration: 0.25 },
                 y: { repeat: Infinity, duration: 1.8, ease: 'easeInOut' }
               }}
-              className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 p-2 sm:p-2.5 rounded-full bg-[#fde68a] border-2 border-[#0284c7] shadow-[2px_2px_0px_0px_#0284c7] text-[#0284c7] hover:bg-[#0284c7] hover:text-white cursor-pointer transition-all"
-              onClick={handleScrollDownNext}
-              aria-label="Scroll to next section"
-              title="向下滚动到下一区域"
+              className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 p-2 sm:p-2.5 rounded-full bg-[#fde68a] border-2 border-[#0284c7] shadow-[2px_2px_0px_0px_#0284c7] text-[#0284c7] hover:bg-[#0284c7] hover:text-white cursor-pointer transition-all active:scale-95"
+              onClick={handleScrollDown}
+              aria-label="向下滚动到下一区域"
+              title="向下滚动"
             >
-              <ChevronDown size={20} className="stroke-[3]" />
-            </motion.button>
+              <ChevronDown size={20} className="stroke-[3] sm:w-[22px] sm:h-[22px]" />
+            </motion.div>
           )}
         </AnimatePresence>
 
